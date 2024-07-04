@@ -7,10 +7,6 @@
 #include <ESP32Servo.h>
 #include <math.h>
 
-#define COUNT_LOW 1638
-#define COUNT_HIGH 7864
-#define TIMER_WIDTH 16
-
 BluetoothSerial ble;
 MPU6050 mpu(Wire);
 
@@ -70,13 +66,9 @@ int readingIndex = 0;
 bool rotationDetectionEnabled = false;
 
 void moveForward();
-
 void moveBackward();
-
 void turnSharpLeft();
-
 void turnSharpRight();
-
 void stopMotors();
 void controlFogLight();
 void outOfTrack();
