@@ -7,8 +7,6 @@
 #include <ESP32Servo.h>
 #include <math.h>
 
-
-
 BluetoothSerial ble;
 MPU6050 mpu(Wire);
 
@@ -23,12 +21,12 @@ int rainsensorPin = 34;
 
 // Define DHT sensor pin and type
 #define DHTPIN 13
-#define DHTTYPE DHT11  // Change this line to use DHT11 sensor
+#define DHTTYPE DHT11
 DHT dht(DHTPIN, DHTTYPE);
 
 // Define Servo Pin
 int servoPin = 32;
-Servo servo;  // Create servo object to control a servo
+Servo servo;
 
 // Define motor control pins
 int ENB = 12;
@@ -43,20 +41,20 @@ int LS = 35;
 int RS = 39;
 
 // Motor speed (0 to 255)
-int speed = 200; // Initial speed set to half speed
+int speed = 200;
 
 // Define PWM channels
 int pwmChannelA = 3;
 int pwmChannelB = 4;
 
 // Bluetooth command variables
-char bluetoothCommand = 'S'; // 'S' for stop initially
+char bluetoothCommand = 'S';
 
 // Time variables for non-blocking timing
 unsigned long previousMillis = 0;
 unsigned long previousPrintMillis = 0;
-const long interval = 50;  // Interval for main loop in milliseconds
-const long printInterval = 5000;  // Interval for print statements in milliseconds
+const long interval = 50;
+const long printInterval = 5000;
 
 // Variables for smoothing gyro readings
 const int numReadings = 10;
@@ -86,17 +84,15 @@ void setup() {
   Serial.print(F("MPU6050 status: "));
   Serial.println(status);
   while (status != 0) {
-  } // stop everything if could not connect to MPU6050
+  }
 
   Serial.println(F("Calculating offsets, do not move MPU6050"));
   delay(1);
-  mpu.calcOffsets(true, true); // gyro and accelero
+  mpu.calcOffsets(true, true);
   Serial.println("Done!\n");
 
-  // Initialize DHT sensor
   dht.begin();
 
-  // Set the motor control pins as outputs
   pinMode(ENB, OUTPUT);
   pinMode(In4, OUTPUT);
   pinMode(In3, OUTPUT);
@@ -105,24 +101,20 @@ void setup() {
   pinMode(ENA, OUTPUT);
   pinMode(buzzerPin, OUTPUT);
 
-  // Set the sensor pins as inputs
   pinMode(LS, INPUT);
   pinMode(RS, INPUT);
   pinMode(rainsensorPin, INPUT);
 
-  // Configure PWM channels
-  ledcSetup(pwmChannelA, 5000, 8); // Channel 0, 5kHz, 8-bit resolution
+  ledcSetup(pwmChannelA, 5000, 8);
   ledcAttachPin(ENA, pwmChannelA);
 
-  ledcSetup(pwmChannelB, 5000, 8); // Channel 1, 5kHz, 8-bit resolution
+  ledcSetup(pwmChannelB, 5000, 8);
   ledcAttachPin(ENB, pwmChannelB);
 
-  // Attach the servo on pin 32 to the servo object
   servo.attach(servoPin);
 
   pinMode(foglightPin, OUTPUT);
 
-  // Initialize the gyroReadings array
   for (int i = 0; i < numReadings; i++) {
     gyroReadings[i] = 0;
   }
@@ -141,12 +133,10 @@ void loop() {
     outOfTrack();
   }
 
-  // Process Bluetooth commands
   if (ble.available()) {
     bluetoothCommand = ble.read();
   }
 
-  // Execute command based on Bluetooth input
   switch (bluetoothCommand) {
     case 'U':
       moveForward();
@@ -166,8 +156,7 @@ void loop() {
         Serial.println("Rotation detection enabled");
       } else {
         Serial.println("Rotation detection disabled");
-        // Optionally, move servo to a default position when disabling rotation detection
-        servo.write(90); // Move to center position
+        servo.write(90);
       }
       break;
     default:
@@ -177,28 +166,21 @@ void loop() {
 }
 
 void controlFogLight() {
-  // Read DHT sensor for temperature and humidity
-  float temperature = dht.readTemperature(); // Read temperature in Celsius
-  float humidity = dht.readHumidity();       // Read humidity as percentage
-
-  // Calculate dew point
+  float temperature = dht.readTemperature();
+  float humidity = dht.readHumidity();
   float dewPoint = calculateDewPoint(temperature, humidity);
-
-  // Read rain sensor
   bool isRaining = digitalRead(rainsensorPin) == LOW;
 
-  // Turn on fog light if rain is detected or if mist (high humidity) is detected
-  if (isRaining || humidity >= 70 || dewPoint == temperature ) {
-    digitalWrite(foglightPin, HIGH); // Turn on fog lights
+  if (isRaining || humidity >= 70 || dewPoint == temperature) {
+    digitalWrite(foglightPin, HIGH);
   } else {
-    digitalWrite(foglightPin, LOW); // Turn off fog lights
+    digitalWrite(foglightPin, LOW);
   }
 
   unsigned long currentMillis = millis();
   if (currentMillis - previousPrintMillis >= printInterval) {
     previousPrintMillis = currentMillis;
 
-    // Print fog light status, humidity, temperature, and dew point values
     if (digitalRead(foglightPin) == HIGH) {
       Serial.println("Fog light ON due to rain or mist detected.");
     } else {
@@ -215,7 +197,6 @@ void controlFogLight() {
     Serial.print(dewPoint);
     Serial.println(" °C");
 
-    // Print additional status messages
     if (isRaining) {
       Serial.println("Rain detected.");
     }
@@ -225,6 +206,10 @@ void controlFogLight() {
     if (dewPoint >= 15) {
       Serial.println("Mist detected (high dew point).");
     }
+
+    // Send data to Bluetooth terminal app
+    String data = "Humidity: " + String(humidity) + " %, " + "Temperature: " + String(temperature) + " °C, " + "Dew Point: " + String(dewPoint) + " °C";
+    ble.println(data);
   }
 }
 
@@ -240,40 +225,35 @@ void detectRotation() {
   mpu.update();
   float rotationalSpeed = mpu.getGyroZ();
   
-  // Shift old readings in the array
   for (int i = numReadings - 1; i > 0; i--) {
     gyroReadings[i] = gyroReadings[i - 1];
   }
   
-  // Add new reading to the array
   gyroReadings[0] = rotationalSpeed;
   
-  // Calculate average of recent readings
   smoothedGyroZ = 0;
   for (int i = 0; i < numReadings; i++) {
     smoothedGyroZ += gyroReadings[i];
   }
   smoothedGyroZ /= numReadings;
   
-  // Map and constrain the smoothed value
   float mappedValue = map(smoothedGyroZ, -150, 150, 0, 180);
   mappedValue = constrain(mappedValue, 45, 135);
 
-  // Smooth the servo movement
   int currentAngle = servo.read();
   int targetAngle = mappedValue;
   int step = 2;
 
-  if (abs(currentAngle - targetAngle) > 5) { // Apply deadband of 5 degrees
+  if (abs(currentAngle - targetAngle) > 5) {
     if (currentAngle < targetAngle) {
       for (int pos = currentAngle; pos <= targetAngle; pos += step) {
         servo.write(pos);
-        delay(0);  // Adjust the delay for smoother movement
+        delay(0);
       }
     } else {
       for (int pos = currentAngle; pos >= targetAngle; pos -= step) {
         servo.write(pos);
-        delay(0);  // Adjust the delay for smoother movement
+        delay(0);
       }
     }
   }
@@ -288,51 +268,51 @@ void outOfTrack() {
 }
 
 void moveForward() {
-  digitalWrite(In1, LOW); // Swap HIGH and LOW signals
+  digitalWrite(In1, LOW);
   digitalWrite(In2, HIGH);
-  ledcWrite(pwmChannelA, speed); // Set speed
+  ledcWrite(pwmChannelA, speed);
 
-  digitalWrite(In3, LOW); // Swap HIGH and LOW signals
+  digitalWrite(In3, LOW);
   digitalWrite(In4, HIGH);
-  ledcWrite(pwmChannelB, speed); // Set speed
+  ledcWrite(pwmChannelB, speed);
 }
 
 void moveBackward() {
-  digitalWrite(In1, HIGH); // Swap HIGH and LOW signals
+  digitalWrite(In1, HIGH);
   digitalWrite(In2, LOW);
-  ledcWrite(pwmChannelA, speed); // Set speed
+  ledcWrite(pwmChannelA, speed);
 
-  digitalWrite(In3, HIGH); // Swap HIGH and LOW signals
+  digitalWrite(In3, HIGH);
   digitalWrite(In4, LOW);
-  ledcWrite(pwmChannelB, speed); // Set speed
+  ledcWrite(pwmChannelB, speed);
 }
 
 void turnSharpRight() {
-  digitalWrite(In1, HIGH); // Swap HIGH and LOW signals
+  digitalWrite(In1, HIGH);
   digitalWrite(In2, LOW);
-  ledcWrite(pwmChannelA, speed); // Set speed
+  ledcWrite(pwmChannelA, speed);
 
-  digitalWrite(In3, LOW); // Swap HIGH and LOW signals
+  digitalWrite(In3, LOW);
   digitalWrite(In4, HIGH);
-  ledcWrite(pwmChannelB, speed); // Set speed
+  ledcWrite(pwmChannelB, speed);
 }
 
 void turnSharpLeft() {
-  digitalWrite(In1, LOW); // Swap HIGH and LOW signals
+  digitalWrite(In1, LOW);
   digitalWrite(In2, HIGH);
-  ledcWrite(pwmChannelA, speed); // Set speed
+  ledcWrite(pwmChannelA, speed);
 
-  digitalWrite(In3, HIGH); // Swap HIGH and LOW signals
+  digitalWrite(In3, HIGH);
   digitalWrite(In4, LOW);
-  ledcWrite(pwmChannelB, speed); // Set speed
+  ledcWrite(pwmChannelB, speed);
 }
 
 void stopMotors() {
-  digitalWrite(In1, LOW); // Swap HIGH and LOW signals
+  digitalWrite(In1, LOW);
   digitalWrite(In2, LOW);
-  ledcWrite(pwmChannelA, 0); // Stop motor
+  ledcWrite(pwmChannelA, 0);
 
-  digitalWrite(In3, LOW); // Swap HIGH and LOW signals
+  digitalWrite(In3, LOW);
   digitalWrite(In4, LOW);
-  ledcWrite(pwmChannelB, 0); // Stop motor
+  ledcWrite(pwmChannelB, 0);
 }
