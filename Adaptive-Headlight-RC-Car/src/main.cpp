@@ -7,6 +7,8 @@
 #include <ESP32Servo.h>
 #include <math.h>
 
+
+
 BluetoothSerial ble;
 MPU6050 mpu(Wire);
 
@@ -20,8 +22,8 @@ int foglightPin = 16;
 int rainsensorPin = 34;
 
 // Define DHT sensor pin and type
-#define DHTPIN 15
-#define DHTTYPE DHT22
+#define DHTPIN 13
+#define DHTTYPE DHT11  // Change this line to use DHT11 sensor
 DHT dht(DHTPIN, DHTTYPE);
 
 // Define Servo Pin
@@ -186,7 +188,7 @@ void controlFogLight() {
   bool isRaining = digitalRead(rainsensorPin) == LOW;
 
   // Turn on fog light if rain is detected or if mist (high humidity) is detected
-  if (isRaining || humidity >= 70 || dewPoint >= 15) {
+  if (isRaining || humidity >= 100 || dewPoint >= 15) {
     digitalWrite(foglightPin, HIGH); // Turn on fog lights
   } else {
     digitalWrite(foglightPin, LOW); // Turn off fog lights
@@ -196,7 +198,7 @@ void controlFogLight() {
   if (currentMillis - previousPrintMillis >= printInterval) {
     previousPrintMillis = currentMillis;
 
-    // Print fog light status, humidity, and temperature values
+    // Print fog light status, humidity, temperature, and dew point values
     if (digitalRead(foglightPin) == HIGH) {
       Serial.println("Fog light ON due to rain or mist detected.");
     } else {
@@ -208,6 +210,9 @@ void controlFogLight() {
     Serial.println(" %");
     Serial.print("Current Temperature: ");
     Serial.print(temperature);
+    Serial.println(" °C");
+    Serial.print("Dew Point: ");
+    Serial.print(dewPoint);
     Serial.println(" °C");
 
     // Print additional status messages
