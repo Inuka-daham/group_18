@@ -188,7 +188,7 @@ void controlFogLight() {
   bool isRaining = digitalRead(rainsensorPin) == LOW;
 
   // Turn on fog light if rain is detected or if mist (high humidity) is detected
-  if (isRaining || humidity >= 70 || dewPoint >= 15) {
+  if (isRaining || humidity >= 70 || dewPoint == temperature ) {
     digitalWrite(foglightPin, HIGH); // Turn on fog lights
   } else {
     digitalWrite(foglightPin, LOW); // Turn off fog lights
